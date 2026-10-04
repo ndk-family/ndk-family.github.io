@@ -17,14 +17,15 @@
 <style>
   html, body { margin: 0; height: 100%; background: #f4f6ef; }
   body { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
-  iframe { display: block; width: 100%; height: 100%; border: 0; }
-  #attente { position: fixed; inset: 0; display: grid; place-items: center; font: 600 16px system-ui, sans-serif; color: #04482f; }
+  iframe { position: relative; z-index: 1; display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+  #attente { position: fixed; inset: 0; z-index: 0; display: grid; place-content: center; justify-items: center; gap: 14px; font: 600 16px system-ui, sans-serif; color: #04482f; }
+  #attente img { width: 96px; height: 96px; border-radius: 22px; }
 </style>
 </head>
 <body>
-<div id="attente">Ouverture de NDK Family…</div>
+<div id="attente"><img src="icone-192.png" alt="">Ouverture de NDK Family…</div>
 <!-- L'application elle-même (Google Apps Script). Cette page ne fait que lui donner un nom et une icône. -->
 <iframe src="https://script.google.com/macros/s/AKfycbyllO6nswXjl7YaR1MmFmT0v_i6cA8IbGD8TY9bIZCTLovfqkgFcXJwZyBlSClKASs/exec"
-        title="NDK Family" allow="clipboard-write" onload="document.getElementById('attente').remove()"></iframe>
+        title="NDK Family" allow="clipboard-write"></iframe>
 </body>
 </html>
