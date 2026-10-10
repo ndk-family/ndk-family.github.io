@@ -89,7 +89,9 @@
   var disponible = window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
     ? PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(function () { return false; }) : Promise.resolve(false);
   disponible.then(function (ok) { webauthn = !!ok; if (app) annoncer(); });
-  function annoncer() { envoyer({ ndk: 'porte', webauthn: webauthn, libelle: LIB, actif: lsGet('ndk.faceid') === '1' }); }
+  /* La connexion et la dernière situation sont gardées ici : sur iPhone, le stockage du cadre Google est effacé entre deux ouvertures. */
+  function etatGarde() { try { return JSON.parse(lsGet('ndk.etat') || 'null'); } catch (e) { return null; } }
+  function annoncer() { envoyer({ ndk: 'porte', webauthn: webauthn, libelle: LIB, actif: lsGet('ndk.faceid') === '1', jeton: lsGet('ndk.jeton'), etat: etatGarde() }); }
 
   /* Clé publique (x, y) : directement si le navigateur la fournit, sinon lue dans la réponse CBOR. */
   function clePublique(rep) {
@@ -124,6 +126,8 @@
     else if (m.ndk === 'enrolement') { enrol = m; $('fid-voile').hidden = false; $('fid-activer').hidden = false; $('fid-oui').focus(); }
     else if (m.ndk === 'faceid-ok') { lsSet('ndk.faceid', '1'); annoncer(); }
     else if (m.ndk === 'faceid-oublie') { lsSet('ndk.faceid', null); annoncer(); }
+    else if (m.ndk === 'session') { lsSet('ndk.jeton', typeof m.jeton === 'string' && m.jeton ? m.jeton : null); if (!m.jeton) lsSet('ndk.etat', null); }
+    else if (m.ndk === 'etat') { if (m.g && m.g.j && m.g.j === lsGet('ndk.jeton')) { try { localStorage.setItem('ndk.etat', JSON.stringify(m.g)); } catch (e) {} } }
   });
   // L'application a peut-être dit bonjour avant que cette page écoute : on se présente au cadre dès qu'il est chargé.
   function saluer(w, n) { try { for (var k = 0; k < w.frames.length; k++) { w.frames[k].postMessage({ ndk: 'porte-prete' }, '*'); if (n < 3) saluer(w.frames[k], n + 1); } } catch (e) {} }
