@@ -22,6 +22,11 @@
   iframe { position: relative; z-index: 1; display: block; width: 1px; min-width: 100%; max-width: 100%; height: 100%; border: 0; background: transparent; }
   #attente { position: fixed; inset: 0; z-index: 0; display: grid; place-content: center; justify-items: center; gap: 14px; font: 600 16px system-ui, sans-serif; color: #04482f; }
   #attente img { width: 96px; height: 96px; border-radius: 22px; }
+  #attente small { font-weight: 400; font-size: 14px; color: #55665a; max-width: 280px; text-align: center; min-height: 20px; }
+  #attente button { font: 600 16px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 12px 20px; background: #0a4a30; color: #fff; cursor: pointer; }
+  #attente button[hidden] { display: none; }
+  #attente.panne { z-index: 2; background: #f4f6ef; }
+  @media (prefers-color-scheme: dark) { #attente small { color: #a2b3a6; } }
   /* Face ID : la vérification se fait ici, sur la page de l'icône, car le cadre Google ne l'autorise pas */
   .fid { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 5; max-width: 480px; margin: 0 auto; background: #ffffff; border: 1px solid #d9e1d4; border-radius: 18px; box-shadow: 0 8px 28px rgb(10 40 25 / 18%); padding: 14px; display: grid; gap: 10px; color: #16261c; }
   .fid[hidden], .voile[hidden] { display: none; }
@@ -40,7 +45,7 @@
 </style>
 </head>
 <body>
-<div id="attente"><img src="icone-192.png" alt="">Ouverture de NDK Family…</div>
+<div id="attente"><img src="icone-192.png" alt="">Ouverture de NDK Family…<small id="attente-etat" role="status"></small><button id="attente-reessayer" type="button" hidden>Réessayer</button></div>
 <!-- L'application elle-même (Google Apps Script). Cette page lui donne un nom, une icône et la connexion par Face ID. -->
 <iframe id="app" src="https://script.google.com/macros/s/AKfycbyllO6nswXjl7YaR1MmFmT0v_i6cA8IbGD8TY9bIZCTLovfqkgFcXJwZyBlSClKASs/exec"
         title="NDK Family" allow="clipboard-write"></iframe>
@@ -111,6 +116,7 @@
   window.addEventListener('message', function (e) {
     if (!APP.test(e.origin) || !e.data || typeof e.data.ndk !== 'string') return;
     app = e.source; origineApp = e.origin;
+    clearTimeout(minuteur); clearTimeout(lent); $('attente-etat').textContent = ''; $('attente').className = ''; $('attente-reessayer').hidden = true;
     var m = e.data;
     if (m.ndk === 'bonjour') annoncer();
     else if (m.ndk === 'connexion') { defi = m.defi; $('fid-connexion').hidden = !(webauthn && lsGet('ndk.faceid') === '1' && defi); }
@@ -120,7 +126,24 @@
     else if (m.ndk === 'faceid-oublie') { lsSet('ndk.faceid', null); annoncer(); }
   });
   // L'application a peut-être dit bonjour avant que cette page écoute : on se présente au cadre dès qu'il est chargé.
-  $('app').addEventListener('load', function () { setTimeout(function () { try { var w = $('app').contentWindow; for (var k = 0; k < w.frames.length; k++) { w.frames[k].postMessage({ ndk: 'porte-prete' }, '*'); } } catch (e) {} }, 400); });
+  function saluer(w, n) { try { for (var k = 0; k < w.frames.length; k++) { w.frames[k].postMessage({ ndk: 'porte-prete' }, '*'); if (n < 3) saluer(w.frames[k], n + 1); } } catch (e) {} }
+  $('app').addEventListener('load', function () { setTimeout(function () { saluer($('app').contentWindow, 0); }, 400); setTimeout(function () { if (!app) saluer($('app').contentWindow, 0); }, 2500); });
+
+  /* Surveillance de l'ouverture : sur le réseau mobile, une connexion à Google reste parfois bloquée.
+     Si l'application ne s'est pas annoncée à temps, la page la recharge (deux fois), puis propose « Réessayer ». */
+  var SRC = $('app').getAttribute('src'), essai = 1, minuteur = null, lent = null;
+  function surveiller() {
+    clearTimeout(minuteur); clearTimeout(lent);
+    lent = setTimeout(function () { if (!app) $('attente-etat').textContent = 'Connexion lente, merci de patienter…'; }, 6000);
+    minuteur = setTimeout(function () {
+      if (app) return;
+      if (essai < 3) { essai++; $('attente-etat').textContent = 'Nouvel essai de connexion (' + essai + ' sur 3)…'; recharger(); }
+      else { $('attente').className = 'panne'; $('attente-etat').textContent = 'NDK Family ne répond pas. Vérifiez votre connexion (Wi-Fi ou données mobiles), puis réessayez.'; $('attente-reessayer').hidden = false; }
+    }, essai === 1 ? 15000 : 20000);
+  }
+  function recharger() { $('app').setAttribute('src', SRC + (SRC.indexOf('?') < 0 ? '?' : '&') + 'essai=' + essai + '-' + Date.now()); surveiller(); }
+  $('attente-reessayer').addEventListener('click', function () { essai = 1; $('attente').className = ''; $('attente-reessayer').hidden = true; $('attente-etat').textContent = 'Nouvel essai de connexion…'; recharger(); });
+  surveiller();
 
   /* Connexion : demandée au toucher (obligatoire pour Face ID) avec le défi préparé par le serveur. */
   $('fid-go').addEventListener('click', function () {
