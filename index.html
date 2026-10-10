@@ -78,7 +78,7 @@
   var hex = function (b) { return Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); };
   var erreur = function (e) {
     var n = e && e.name;
-    if (n === 'NotAllowedError' || n === 'AbortError') return LIB + ' annulé.';
+    if (n === 'NotAllowedError' || n === 'AbortError') return LIB + ' annulé. Si le téléphone indique qu’aucune clé n’est enregistrée, connectez-vous avec votre code, puis touchez « Réactiver » dans Mon espace.';
     if (n === 'InvalidStateError') return LIB + ' est déjà activé sur cet appareil.';
     if (n === 'NotSupportedError') return 'Cet appareil ne propose pas ' + LIB + '.';
     return LIB + ' n’a pas abouti. Réessayez ou utilisez votre code.';
@@ -89,9 +89,14 @@
   var disponible = window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
     ? PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(function () { return false; }) : Promise.resolve(false);
   disponible.then(function (ok) { webauthn = !!ok; if (app) annoncer(); });
+  /* Petit journal de diagnostic (affiché dans Mon espace) : ce que la page d'accueil reçoit et garde. */
+  var VERSION = 'v17';
+  function diag(x) { try { var a = JSON.parse(localStorage.getItem('ndk.diag') || '[]'); var d = new Date(); a.push(('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + d.toTimeString().slice(0, 5) + ' · ' + x); localStorage.setItem('ndk.diag', JSON.stringify(a.slice(-15))); } catch (e) {} }
+  function journal() { try { return JSON.parse(localStorage.getItem('ndk.diag') || '[]'); } catch (e) { return []; } }
+  diag('ouverture (' + VERSION + ') · connexion gardée : ' + (lsGet('ndk.jeton') ? 'oui' : 'non') + (window.navigator.standalone ? ' · icône' : ' · navigateur'));
   /* La connexion et la dernière situation sont gardées ici : sur iPhone, le stockage du cadre Google est effacé entre deux ouvertures. */
   function etatGarde() { try { return JSON.parse(lsGet('ndk.etat') || 'null'); } catch (e) { return null; } }
-  function annoncer() { envoyer({ ndk: 'porte', webauthn: webauthn, libelle: LIB, actif: lsGet('ndk.faceid') === '1', jeton: lsGet('ndk.jeton'), etat: etatGarde() }); }
+  function annoncer() { envoyer({ ndk: 'porte', webauthn: webauthn, libelle: LIB, actif: lsGet('ndk.faceid') === '1', jeton: lsGet('ndk.jeton'), etat: etatGarde(), v: VERSION, diag: journal() }); }
 
   /* Clé publique (x, y) : directement si le navigateur la fournit, sinon lue dans la réponse CBOR. */
   function clePublique(rep) {
@@ -126,8 +131,9 @@
     else if (m.ndk === 'enrolement') { enrol = m; $('fid-voile').hidden = false; $('fid-activer').hidden = false; $('fid-oui').focus(); }
     else if (m.ndk === 'faceid-ok') { lsSet('ndk.faceid', '1'); annoncer(); }
     else if (m.ndk === 'faceid-oublie') { lsSet('ndk.faceid', null); annoncer(); }
-    else if (m.ndk === 'session') { lsSet('ndk.jeton', typeof m.jeton === 'string' && m.jeton ? m.jeton : null); if (!m.jeton) lsSet('ndk.etat', null); }
-    else if (m.ndk === 'etat') { if (m.g && m.g.j && m.g.j === lsGet('ndk.jeton')) { try { localStorage.setItem('ndk.etat', JSON.stringify(m.g)); } catch (e) {} } }
+    else if (m.ndk === 'session') { lsSet('ndk.jeton', typeof m.jeton === 'string' && m.jeton ? m.jeton : null); if (!m.jeton) lsSet('ndk.etat', null); diag('connexion ' + (m.jeton ? 'reçue' : 'effacée') + ' · relue : ' + (lsGet('ndk.jeton') ? 'oui' : 'non')); }
+    else if (m.ndk === 'etat') { if (m.g && m.g.j && m.g.j === lsGet('ndk.jeton')) { try { localStorage.setItem('ndk.etat', JSON.stringify(m.g)); } catch (e) { diag('situation trop lourde pour être gardée'); } } }
+    else if (m.ndk === 'diag') { diag(String(m.t || '').slice(0, 120)); }
   });
   // L'application a peut-être dit bonjour avant que cette page écoute : on se présente au cadre dès qu'il est chargé.
   function saluer(w, n) { try { for (var k = 0; k < w.frames.length; k++) { w.frames[k].postMessage({ ndk: 'porte-prete' }, '*'); if (n < 3) saluer(w.frames[k], n + 1); } } catch (e) {} }
