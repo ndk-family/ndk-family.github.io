@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NDK Family</title>
-<meta name="description" content="L’espace privé de la famille NDK">
-<meta name="theme-color" content="#04482f">
+<meta name="description" content="L’espace privé de NDK Family, sur Adya">
+<meta name="theme-color" content="#0a4a30">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="NDK Family">
@@ -20,7 +20,7 @@
   body { position: fixed; inset: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
   /* Sur iPhone, un cadre s'élargit à la taille de son contenu : 1px + min-width 100 % le garde à la largeur de l'écran */
   iframe { position: relative; z-index: 1; display: block; width: 1px; min-width: 100%; max-width: 100%; height: 100%; border: 0; background: transparent; }
-  #attente { position: fixed; inset: 0; z-index: 0; display: grid; place-content: center; justify-items: center; gap: 14px; font: 600 16px system-ui, sans-serif; color: #04482f; }
+  #attente { position: fixed; inset: 0; z-index: 0; display: grid; place-content: center; justify-items: center; gap: 14px; font: 600 16px system-ui, sans-serif; color: #0a4a30; text-align: center; padding: 0 24px; }
   #attente img { width: 96px; height: 96px; border-radius: 22px; }
   #attente small { font-weight: 400; font-size: 14px; color: #55665a; max-width: 280px; text-align: center; min-height: 20px; }
   #attente button { font: 600 16px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 12px 20px; background: #0a4a30; color: #fff; cursor: pointer; }
@@ -46,9 +46,8 @@
 </head>
 <body>
 <div id="attente"><img src="icone-192.png" alt="">Ouverture de NDK Family…<small id="attente-etat" role="status"></small><button id="attente-reessayer" type="button" hidden>Réessayer</button></div>
-<!-- L'application elle-même (Google Apps Script). Cette page lui donne un nom, une icône et la connexion par Face ID. -->
-<iframe id="app" src="https://script.google.com/macros/s/AKfycbyllO6nswXjl7YaR1MmFmT0v_i6cA8IbGD8TY9bIZCTLovfqkgFcXJwZyBlSClKASs/exec"
-        title="NDK Family" allow="clipboard-write"></iframe>
+<!-- L'application elle-même (Google Apps Script, dans le compte du groupe). Cette page lui donne un nom, une icône et la connexion par Face ID. -->
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbyllO6nswXjl7YaR1MmFmT0v_i6cA8IbGD8TY9bIZCTLovfqkgFcXJwZyBlSClKASs/exec" title="NDK Family" allow="clipboard-write"></iframe>
 
 <div class="fid" id="fid-connexion" hidden role="region" aria-label="Connexion rapide">
   <button class="principal" id="fid-go" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 15.5a3.5 3.5 0 0 0 5 0"/></svg><span id="fid-go-txt">Se connecter avec Face ID</span></button>
@@ -56,23 +55,33 @@
 <div class="voile" id="fid-voile" hidden></div>
 <div class="fid" id="fid-activer" hidden role="dialog" aria-modal="true" aria-labelledby="fid-titre">
   <strong id="fid-titre">Activer Face ID</strong>
-  <p id="fid-texte">NDK Family s’ouvrira d’un regard, sans code. Votre visage reste sur le téléphone.</p>
+  <p id="fid-texte">L’application s’ouvrira d’un regard, sans code. Votre visage reste sur le téléphone.</p>
   <button class="principal" id="fid-oui" type="button">Activer</button>
   <button class="second" id="fid-non" type="button">Plus tard</button>
 </div>
 
 <script>
 (function () {
-  var RP = location.hostname;                                       // ndk-family.github.io
-  var APP = /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/; // origine du cadre de l'application
+  var GROUPE = 'ndk-family';                                           // plusieurs groupes peuvent partager ce domaine
+  var RP = location.hostname;                                        // ex. solugis.github.io
+  var APP = /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/;                                       // origine du cadre de l'application
   var ua = navigator.userAgent;
   var ios = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var LIB = ios ? 'Face ID' : /Mac/.test(navigator.platform) ? 'Touch ID' : /Android/i.test(ua) ? 'l’empreinte' : /Windows/i.test(ua) ? 'Windows Hello' : 'l’empreinte ou le visage';
-  var lsGet = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
-  var lsSet = function (k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
-  var app = null, origineApp = null, defi = null, enrol = null, webauthn = false;
+  var lsGet = function (k) { try { return localStorage.getItem('adya.' + GROUPE + '.' + k); } catch (e) { return null; } };
+  var lsSet = function (k, v) { try { if (v == null) localStorage.removeItem('adya.' + GROUPE + '.' + k); else localStorage.setItem('adya.' + GROUPE + '.' + k, v); } catch (e) {} };
+  var app = null, origineApp = null, defi = null, enrol = null, webauthn = false, cleEnCours = null;
   var $ = function (id) { return document.getElementById(id); };
-  var envoyer = function (m) { if (app) app.postMessage(m, origineApp); };
+  /* Compatibilité avec une ancienne application (ex. NDK Family, messages « ndk ») : les messages portent les deux clés,
+     et la connexion gardée sous l'ancien préfixe est reprise une fois. Vide pour un nouveau groupe. */
+  var COMPAT = 'ndk';
+  if (COMPAT) ['jeton', 'etat', 'faceid'].forEach(function (k) { try { var v = localStorage.getItem(COMPAT + '.' + k); if (v != null && lsGet(k) == null) lsSet(k, v); } catch (e) {} });
+  var envoyer = function (m) { if (COMPAT && m.adya) m[COMPAT] = m.adya; if (app) app.postMessage(m, origineApp); };
+  /* Petit journal de diagnostic (affiché dans Mon espace › Connexion avec Face ID) : ce que cette page reçoit et garde. */
+  var VERSION = 'a2026-10-12';
+  function diag(x) { try { var a = JSON.parse(lsGet('diag') || '[]'); var d = new Date(); a.push(('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + d.toTimeString().slice(0, 5) + ' · ' + x); lsSet('diag', JSON.stringify(a.slice(-15))); } catch (e) {} }
+  function journal() { try { return JSON.parse(lsGet('diag') || '[]'); } catch (e) { return []; } }
+  diag('ouverture (' + VERSION + ') · connexion gardée : ' + (lsGet('jeton') ? 'oui' : 'non') + (window.navigator.standalone ? ' · icône' : ' · navigateur'));
   var b64u = function (buf) { var s = '', b = new Uint8Array(buf); for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
   var deB64u = function (t) { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s = atob(t), b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
   var hex = function (b) { return Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); };
@@ -85,18 +94,13 @@
   };
   $('fid-go-txt').textContent = 'Se connecter avec ' + LIB;
   $('fid-titre').textContent = 'Activer ' + LIB;
-  if (!ios) $('fid-texte').textContent = 'NDK Family s’ouvrira sans code, avec ' + LIB + '. Votre empreinte ou votre visage restent sur l’appareil.';
+  if (!ios) $('fid-texte').textContent = 'L’application s’ouvrira sans code, avec ' + LIB + '. Votre empreinte ou votre visage restent sur l’appareil.';
   var disponible = window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
     ? PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(function () { return false; }) : Promise.resolve(false);
   disponible.then(function (ok) { webauthn = !!ok; if (app) annoncer(); });
-  /* Petit journal de diagnostic (affiché dans Mon espace) : ce que la page d'accueil reçoit et garde. */
-  var VERSION = 'v17';
-  function diag(x) { try { var a = JSON.parse(localStorage.getItem('ndk.diag') || '[]'); var d = new Date(); a.push(('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + d.toTimeString().slice(0, 5) + ' · ' + x); localStorage.setItem('ndk.diag', JSON.stringify(a.slice(-15))); } catch (e) {} }
-  function journal() { try { return JSON.parse(localStorage.getItem('ndk.diag') || '[]'); } catch (e) { return []; } }
-  diag('ouverture (' + VERSION + ') · connexion gardée : ' + (lsGet('ndk.jeton') ? 'oui' : 'non') + (window.navigator.standalone ? ' · icône' : ' · navigateur'));
   /* La connexion et la dernière situation sont gardées ici : sur iPhone, le stockage du cadre Google est effacé entre deux ouvertures. */
-  function etatGarde() { try { return JSON.parse(lsGet('ndk.etat') || 'null'); } catch (e) { return null; } }
-  function annoncer() { envoyer({ ndk: 'porte', webauthn: webauthn, libelle: LIB, actif: lsGet('ndk.faceid') === '1', jeton: lsGet('ndk.jeton'), etat: etatGarde(), v: VERSION, diag: journal() }); }
+  function etatGarde() { try { return JSON.parse(lsGet('etat') || 'null'); } catch (e) { return null; } }
+  function annoncer() { envoyer({ adya: 'porte', webauthn: webauthn, libelle: LIB, actif: lsGet('faceid') === '1', jeton: lsGet('jeton'), etat: etatGarde(), v: VERSION, diag: journal() }); }
 
   /* Clé publique (x, y) : directement si le navigateur la fournit, sinon lue dans la réponse CBOR. */
   function clePublique(rep) {
@@ -121,22 +125,24 @@
   }
 
   window.addEventListener('message', function (e) {
-    if (!APP.test(e.origin) || !e.data || typeof e.data.ndk !== 'string') return;
+    if (!APP.test(e.origin) || !e.data || (typeof e.data.adya !== 'string' && !(COMPAT && typeof e.data[COMPAT] === 'string'))) return;
     app = e.source; origineApp = e.origin;
     clearTimeout(minuteur); clearTimeout(lent); $('attente-etat').textContent = ''; $('attente').className = ''; $('attente-reessayer').hidden = true;
     var m = e.data;
-    if (m.ndk === 'bonjour') annoncer();
-    else if (m.ndk === 'connexion') { defi = m.defi; $('fid-connexion').hidden = !(webauthn && lsGet('ndk.faceid') === '1' && defi); }
-    else if (m.ndk === 'connecte') { defi = null; $('fid-connexion').hidden = true; }
-    else if (m.ndk === 'enrolement') { enrol = m; $('fid-voile').hidden = false; $('fid-activer').hidden = false; $('fid-oui').focus(); }
-    else if (m.ndk === 'faceid-ok') { lsSet('ndk.faceid', '1'); annoncer(); }
-    else if (m.ndk === 'faceid-oublie') { lsSet('ndk.faceid', null); annoncer(); }
-    else if (m.ndk === 'session') { lsSet('ndk.jeton', typeof m.jeton === 'string' && m.jeton ? m.jeton : null); if (!m.jeton) lsSet('ndk.etat', null); diag('connexion ' + (m.jeton ? 'reçue' : 'effacée') + ' · relue : ' + (lsGet('ndk.jeton') ? 'oui' : 'non')); }
-    else if (m.ndk === 'etat') { if (m.g && m.g.j && m.g.j === lsGet('ndk.jeton')) { try { localStorage.setItem('ndk.etat', JSON.stringify(m.g)); } catch (e) { diag('situation trop lourde pour être gardée'); } } }
-    else if (m.ndk === 'diag') { diag(String(m.t || '').slice(0, 120)); }
+    if (typeof m.adya !== 'string') { m = JSON.parse(JSON.stringify(m)); m.adya = m[COMPAT]; }
+    if (m.adya === 'bonjour') annoncer();
+    else if (m.adya === 'connexion') { defi = m.defi; $('fid-connexion').hidden = !(webauthn && lsGet('faceid') === '1' && defi); }
+    else if (m.adya === 'connecte') { defi = null; $('fid-connexion').hidden = true; }
+    else if (m.adya === 'enrolement') { enrol = m; $('fid-voile').hidden = false; $('fid-activer').hidden = false; $('fid-oui').focus(); }
+    else if (m.adya === 'faceid-ok') { lsSet('faceid', '1'); if (cleEnCours) lsSet('cle', cleEnCours); cleEnCours = null; annoncer(); }
+    else if (m.adya === 'faceid-oublie') { lsSet('faceid', null); lsSet('cle', null); annoncer(); }
+    else if (m.adya === 'session') { lsSet('jeton', typeof m.jeton === 'string' && m.jeton ? m.jeton : null); if (!m.jeton) lsSet('etat', null); diag('connexion ' + (m.jeton ? 'reçue' : 'effacée') + ' · relue : ' + (lsGet('jeton') ? 'oui' : 'non')); }
+    else if (m.adya === 'etat') { if (m.g && m.g.j && m.g.j === lsGet('jeton')) { try { localStorage.setItem('adya.' + GROUPE + '.etat', JSON.stringify(m.g)); } catch (e) { diag('situation trop lourde pour être gardée'); } } }
+    else if (m.adya === 'diag') { diag(String(m.t || '').slice(0, 120)); }
   });
-  // L'application a peut-être dit bonjour avant que cette page écoute : on se présente au cadre dès qu'il est chargé.
-  function saluer(w, n) { try { for (var k = 0; k < w.frames.length; k++) { w.frames[k].postMessage({ ndk: 'porte-prete' }, '*'); if (n < 3) saluer(w.frames[k], n + 1); } } catch (e) {} }
+  // L'application a peut-être dit bonjour avant que cette page écoute : on se présente à tous les cadres
+  // (le cadre de l'application est deux niveaux sous cette page) dès que le cadre principal est chargé.
+  function saluer(w, n) { try { for (var k = 0; k < w.frames.length; k++) { var p = { adya: 'porte-prete' }; if (COMPAT) p[COMPAT] = 'porte-prete'; w.frames[k].postMessage(p, '*'); if (n < 3) saluer(w.frames[k], n + 1); } } catch (e) {} }
   $('app').addEventListener('load', function () { setTimeout(function () { saluer($('app').contentWindow, 0); }, 400); setTimeout(function () { if (!app) saluer($('app').contentWindow, 0); }, 2500); });
 
   /* Surveillance de l'ouverture : sur le réseau mobile, une connexion à Google reste parfois bloquée.
@@ -148,7 +154,7 @@
     minuteur = setTimeout(function () {
       if (app) return;
       if (essai < 3) { essai++; $('attente-etat').textContent = 'Nouvel essai de connexion (' + essai + ' sur 3)…'; recharger(); }
-      else { $('attente').className = 'panne'; $('attente-etat').textContent = 'NDK Family ne répond pas. Vérifiez votre connexion (Wi-Fi ou données mobiles), puis réessayez.'; $('attente-reessayer').hidden = false; }
+      else { $('attente').className = 'panne'; $('attente-etat').textContent = 'L’application ne répond pas. Vérifiez votre connexion (Wi-Fi ou données mobiles), puis réessayez.'; $('attente-reessayer').hidden = false; }
     }, essai === 1 ? 15000 : 20000);
   }
   function recharger() { $('app').setAttribute('src', SRC + (SRC.indexOf('?') < 0 ? '?' : '&') + 'essai=' + essai + '-' + Date.now()); surveiller(); }
@@ -159,11 +165,13 @@
   $('fid-go').addEventListener('click', function () {
     if (!defi) return;
     var d = defi; defi = null; $('fid-connexion').hidden = true;
-    navigator.credentials.get({ publicKey: { challenge: deB64u(d), rpId: RP, userVerification: 'required', timeout: 60000 } })
+    var cle = lsGet('cle'), opts = { challenge: deB64u(d), rpId: RP, userVerification: 'required', timeout: 60000 };
+    if (cle) opts.allowCredentials = [{ type: 'public-key', id: deB64u(cle) }];   // seulement la clé de ce groupe
+    navigator.credentials.get({ publicKey: opts })
       .then(function (c) {
-        envoyer({ ndk: 'faceid-assertion', id: b64u(c.rawId), clientDataJSON: b64u(c.response.clientDataJSON), authenticatorData: b64u(c.response.authenticatorData), signature: b64u(c.response.signature) });
+        envoyer({ adya: 'faceid-assertion', id: b64u(c.rawId), clientDataJSON: b64u(c.response.clientDataJSON), authenticatorData: b64u(c.response.authenticatorData), signature: b64u(c.response.signature) });
       })
-      .catch(function (e) { envoyer({ ndk: 'faceid-erreur', message: erreur(e) }); });
+      .catch(function (e) { envoyer({ adya: 'faceid-erreur', message: erreur(e) }); });
   });
 
   /* Activation sur cet appareil (depuis Mon espace) : création de la clé, protégée par Face ID. */
@@ -172,17 +180,18 @@
   $('fid-oui').addEventListener('click', function () {
     var m = enrol; enrol = null; fermer(); if (!m) return;
     navigator.credentials.create({ publicKey: {
-      challenge: deB64u(m.defi), rp: { id: RP, name: 'NDK Family' },
-      user: { id: new TextEncoder().encode(m.user.id), name: m.user.nom, displayName: m.user.nom },
+      challenge: deB64u(m.defi), rp: { id: RP, name: 'Adya – NDK Family' },
+      user: { id: new TextEncoder().encode(GROUPE + ':' + m.user.id), name: m.user.nom, displayName: m.user.nom },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
       authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'required', userVerification: 'required' },
       attestation: 'none', timeout: 60000 } })
       .then(function (c) {
         var alg = c.response.getPublicKeyAlgorithm ? c.response.getPublicKeyAlgorithm() : -7, k = clePublique(c.response);
         var appareil = ios ? (/iPad/.test(ua) ? 'iPad' : 'iPhone') : /Android/i.test(ua) ? 'Android' : /Mac/.test(navigator.platform) ? 'Mac' : /Windows/i.test(ua) ? 'PC Windows' : 'Appareil';
-        envoyer({ ndk: 'faceid-cree', id: b64u(c.rawId), x: k.x, y: k.y, alg: alg, clientDataJSON: b64u(c.response.clientDataJSON), appareil: appareil });
+        cleEnCours = b64u(c.rawId);
+        envoyer({ adya: 'faceid-cree', id: cleEnCours, x: k.x, y: k.y, alg: alg, clientDataJSON: b64u(c.response.clientDataJSON), appareil: appareil });
       })
-      .catch(function (e) { envoyer({ ndk: 'faceid-erreur', message: erreur(e) }); });
+      .catch(function (e) { envoyer({ adya: 'faceid-erreur', message: erreur(e) }); });
   });
 })();
 </script>
